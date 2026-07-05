@@ -1,0 +1,1764 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>متتبع استهلاك الوقود</title>
+    <style>
+      :root {
+        --bg: #f0f4f8;
+        --surface: #ffffff;
+        --surface-hover: #f8fafc;
+        --text: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --border: #e2e8f0;
+        --primary: #0d6b6e;
+        --primary-light: #0f7c80;
+        --primary-bg: #e6f4f5;
+        --accent: #e88c2a;
+        --accent-light: #fdf0e1;
+        --danger: #c53030;
+        --danger-bg: #fff5f5;
+        --success: #276749;
+        --success-bg: #f0fff4;
+        --warning: #b7791f;
+        --warning-bg: #fffff0;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+        --shadow-lg:
+          0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
+        --shadow-xl:
+          0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+        --radius-sm: 8px;
+        --radius: 12px;
+        --radius-lg: 16px;
+        --radius-xl: 20px;
+        --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        --font: "Segoe UI", "Tahoma", "Arial", sans-serif;
+        --gauge-green: #38a169;
+        --gauge-yellow: #d69e2e;
+        --gauge-red: #e53e3e;
+        --gauge-bg: #e2e8f0;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1a202c;
+          --surface: #2d3748;
+          --surface-hover: #374151;
+          --text: #e2e8f0;
+          --text-secondary: #cbd5e0;
+          --text-muted: #a0aec0;
+          --border: #4a5568;
+          --primary: #4fd1c5;
+          --primary-light: #38b2ac;
+          --primary-bg: #1a3a38;
+          --accent: #f6ad55;
+          --accent-light: #3d2e1c;
+          --danger: #fc8181;
+          --danger-bg: #3d1f1f;
+          --success: #68d391;
+          --success-bg: #1a3328;
+          --warning: #f6e05e;
+          --warning-bg: #3d3520;
+          --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+          --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+          --shadow-lg:
+            0 4px 6px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.25);
+          --shadow-xl:
+            0 10px 15px rgba(0, 0, 0, 0.4), 0 4px 6px rgba(0, 0, 0, 0.3);
+          --gauge-bg: #4a5568;
+        }
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+        transition:
+          background var(--transition),
+          color var(--transition);
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+
+      /* Header */
+      .app-header {
+        text-align: center;
+        padding: 24px 0 8px;
+      }
+      .app-header .logo {
+        font-size: 2.2rem;
+        margin-bottom: 4px;
+      }
+      .app-header h1 {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--primary);
+        letter-spacing: -0.5px;
+      }
+      .app-header .subtitle {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+
+      /* Cards */
+      .card {
+        background: var(--surface);
+        border-radius: var(--radius-lg);
+        padding: 20px 24px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border);
+        transition: all var(--transition);
+      }
+      .card:hover {
+        box-shadow: var(--shadow-lg);
+      }
+      .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .card-header h2 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .card-header .icon {
+        font-size: 1.4rem;
+      }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 18px;
+        border-radius: var(--radius-sm);
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all var(--transition);
+        white-space: nowrap;
+        font-family: var(--font);
+        text-decoration: none;
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: var(--primary-light);
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-1px);
+      }
+      .btn-outline {
+        background: transparent;
+        color: var(--primary);
+        border: 2px solid var(--primary);
+      }
+      .btn-outline:hover {
+        background: var(--primary-bg);
+      }
+      .btn-danger {
+        background: var(--danger);
+        color: #fff;
+      }
+      .btn-danger:hover {
+        background: #9b2c2c;
+        box-shadow: var(--shadow-lg);
+      }
+      .btn-sm {
+        padding: 6px 12px;
+        font-size: 0.78rem;
+        border-radius: 6px;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--text-secondary);
+        border: 1px solid transparent;
+      }
+      .btn-ghost:hover {
+        background: var(--surface-hover);
+        border-color: var(--border);
+      }
+
+      /* Forms */
+      .form-group {
+        margin-bottom: 14px;
+      }
+      .form-group label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+        color: var(--text-secondary);
+      }
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: var(--radius-sm);
+        border: 2px solid var(--border);
+        font-size: 0.95rem;
+        font-family: var(--font);
+        background: var(--surface);
+        color: var(--text);
+        transition: all var(--transition);
+      }
+      .form-group input:focus,
+      .form-group select:focus,
+      .form-group textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--primary-bg);
+      }
+      .form-group textarea {
+        resize: vertical;
+        min-height: 60px;
+      }
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 500px) {
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Setup Wizard */
+      .wizard-overlay {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .wizard-card {
+        background: var(--surface);
+        border-radius: var(--radius-xl);
+        padding: 32px 28px;
+        max-width: 480px;
+        width: 100%;
+        box-shadow: var(--shadow-xl);
+        border: 1px solid var(--border);
+        text-align: center;
+      }
+      .wizard-card .wizard-icon {
+        font-size: 3.5rem;
+        margin-bottom: 12px;
+      }
+      .wizard-card h2 {
+        font-size: 1.4rem;
+        margin-bottom: 6px;
+        color: var(--primary);
+      }
+      .wizard-card p {
+        color: var(--text-muted);
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+      }
+
+      /* Dashboard Grid */
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .stat-card {
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 16px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border);
+        text-align: center;
+        transition: all var(--transition);
+      }
+      .stat-card:hover {
+        box-shadow: var(--shadow);
+        transform: translateY(-2px);
+      }
+      .stat-card .stat-icon {
+        font-size: 1.6rem;
+        margin-bottom: 4px;
+      }
+      .stat-card .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+      }
+      .stat-card .stat-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+      .stat-card.wide {
+        grid-column: span 2;
+      }
+      @media (max-width: 500px) {
+        .stat-card.wide {
+          grid-column: span 1;
+        }
+      }
+
+      /* Fuel Gauge */
+      .gauge-container {
+        margin: 12px 0;
+      }
+      .gauge-bar-outer {
+        width: 100%;
+        height: 20px;
+        background: var(--gauge-bg);
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+      }
+      .gauge-bar-inner {
+        height: 100%;
+        border-radius: 10px;
+        transition:
+          width 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+          background 0.4s;
+      }
+      .gauge-bar-inner.green {
+        background: var(--gauge-green);
+      }
+      .gauge-bar-inner.yellow {
+        background: var(--gauge-yellow);
+      }
+      .gauge-bar-inner.red {
+        background: var(--gauge-red);
+      }
+      .gauge-info {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+
+      /* Table */
+      .table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        min-width: 650px;
+      }
+      table th,
+      table td {
+        padding: 10px 12px;
+        text-align: center;
+        border-bottom: 1px solid var(--border);
+      }
+      table th {
+        background: var(--surface-hover);
+        font-weight: 700;
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        position: sticky;
+        top: 0;
+        white-space: nowrap;
+      }
+      table tbody tr {
+        transition: background var(--transition);
+      }
+      table tbody tr:hover {
+        background: var(--surface-hover);
+      }
+      table .badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 600;
+      }
+      .badge-full {
+        background: var(--primary-bg);
+        color: var(--primary);
+      }
+      .badge-partial {
+        background: var(--accent-light);
+        color: var(--accent);
+      }
+      .badge-initial {
+        background: var(--warning-bg);
+        color: var(--warning);
+      }
+      .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+      }
+      .empty-state .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 10px;
+      }
+
+      /* Modal */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+        animation: fadeIn 0.2s ease;
+      }
+      .modal {
+        background: var(--surface);
+        border-radius: var(--radius-xl);
+        padding: 24px;
+        max-width: 500px;
+        width: 100%;
+        box-shadow: var(--shadow-xl);
+        border: 1px solid var(--border);
+        max-height: 85vh;
+        overflow-y: auto;
+        animation: slideUp 0.25s ease;
+      }
+      .modal h3 {
+        font-size: 1.2rem;
+        margin-bottom: 16px;
+        color: var(--text);
+        text-align: center;
+      }
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 20px;
+        flex-wrap: wrap;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes slideUp {
+        from {
+          transform: translateY(30px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      /* Toast */
+      .toast-container {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+        pointer-events: none;
+      }
+      .toast {
+        background: var(--text);
+        color: var(--bg);
+        padding: 12px 20px;
+        border-radius: 30px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        box-shadow: var(--shadow-xl);
+        animation:
+          toastIn 0.35s ease,
+          toastOut 0.35s ease 2.5s forwards;
+        pointer-events: auto;
+        max-width: 90vw;
+        text-align: center;
+      }
+      .toast.success {
+        background: var(--success);
+        color: #fff;
+      }
+      .toast.error {
+        background: var(--danger);
+        color: #fff;
+      }
+      @keyframes toastIn {
+        from {
+          transform: translateY(60px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      @keyframes toastOut {
+        from {
+          opacity: 1;
+        }
+        to {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+      }
+
+      /* Print */
+      @media print {
+        body {
+          background: #fff !important;
+          color: #000 !important;
+          font-size: 11px;
+        }
+        .container {
+          max-width: 100%;
+          padding: 0;
+        }
+        .card {
+          box-shadow: none !important;
+          border: 1px solid #ccc !important;
+          break-inside: avoid;
+          margin-bottom: 10px;
+          padding: 12px 16px;
+        }
+        .btn,
+        .modal-overlay,
+        .toast-container,
+        .no-print,
+        #record-form-card,
+        .app-header .subtitle {
+          display: none !important;
+        }
+        .stat-card {
+          box-shadow: none !important;
+          border: 1px solid #ddd !important;
+        }
+        table th {
+          background: #eee !important;
+        }
+        .dashboard-grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+        @page {
+          margin: 1cm;
+        }
+      }
+
+      /* Misc */
+      .highlight {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .text-sm {
+        font-size: 0.8rem;
+      }
+      .text-muted {
+        color: var(--text-muted);
+      }
+      .mt-2 {
+        margin-top: 8px;
+      }
+      .mt-4 {
+        margin-top: 16px;
+      }
+      .mb-2 {
+        margin-bottom: 8px;
+      }
+      .text-center {
+        text-align: center;
+      }
+      .divider {
+        border-top: 1px solid var(--border);
+        margin: 16px 0;
+      }
+      .confirm-content {
+        text-align: center;
+        font-size: 1rem;
+        padding: 10px 0;
+        color: var(--text-secondary);
+      }
+      .confirm-content .warn-icon {
+        font-size: 2.5rem;
+        display: block;
+        margin-bottom: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="app-container">
+      <!-- سيتم تعبئته ديناميكيًا -->
+    </div>
+
+    <!-- حاوية التوست -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- حاوية المودال -->
+    <div id="modal-container"></div>
+
+    <script>
+      (function () {
+        // ==================== فئة متتبع الوقود ====================
+        class FuelTracker {
+          constructor() {
+            this.STORAGE_KEY = "fuel_tracker_data_v2";
+            this.vehicle = null; // { name, tankCapacity, initialOdometer, initialFuelPercentage }
+            this.records = []; // [{ id, date, odometer, liters, cost, fillType, isInitial, notes }]
+            this.computedStats = {}; // إحصائيات محسوبة ديناميكيًا
+            this.monthlyData = []; // ملخص شهري محسوب ديناميكيًا
+          }
+
+          // --- دوال التخزين ---
+          load() {
+            const raw = localStorage.getItem(this.STORAGE_KEY);
+            if (raw) {
+              try {
+                const data = JSON.parse(raw);
+                this.vehicle = data.vehicle || null;
+                this.records = data.records || [];
+              } catch (e) {
+                this.vehicle = null;
+                this.records = [];
+              }
+            } else {
+              this.vehicle = null;
+              this.records = [];
+            }
+          }
+
+          save() {
+            const data = {
+              vehicle: this.vehicle,
+              records: this.records,
+            };
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+          }
+
+          isFirstRun() {
+            return !this.vehicle || this.records.length === 0;
+          }
+
+          // --- إعداد المركبة لأول مرة ---
+          setupVehicle(name, tankCapacity, odometer, fuelPercentage) {
+            this.vehicle = {
+              name: name || "مركبتي",
+              tankCapacity: parseFloat(tankCapacity),
+              initialOdometer: parseFloat(odometer),
+              initialFuelPercentage: parseFloat(fuelPercentage),
+            };
+            // إنشاء السجل المرجعي الأولي
+            const initialRecord = {
+              id: this._generateId(),
+              date: new Date().toISOString().split("T")[0],
+              odometer: parseFloat(odometer),
+              liters: 0,
+              cost: 0,
+              fillType: "initial",
+              isInitial: true,
+              notes: "السجل المرجعي الأولي - لا يُحتسب منه الاستهلاك",
+            };
+            this.records = [initialRecord];
+            this.save();
+            this.recalculateAll();
+          }
+
+          // --- إضافة سجل تزويد ---
+          addRecord(odometer, liters, cost, fillType, date, notes) {
+            // التحقق من صحة البيانات
+            if (
+              parseFloat(odometer) <= 0 ||
+              parseFloat(liters) < 0 ||
+              parseFloat(cost) < 0
+            ) {
+              throw new Error("يجب أن تكون القيم موجبة.");
+            }
+            // التحقق من أن العداد لا يقل عن آخر قراءة
+            const lastOdometer = this._getLastOdometer();
+            if (parseFloat(odometer) < lastOdometer) {
+              throw new Error(
+                `قراءة العداد (${parseFloat(odometer)}) لا يمكن أن تكون أقل من آخر قراءة (${lastOdometer}).`,
+              );
+            }
+            if (fillType === "full" && parseFloat(liters) <= 0) {
+              throw new Error("تعبئة كاملة تتطلب كمية وقود أكبر من صفر.");
+            }
+
+            const record = {
+              id: this._generateId(),
+              date: date || new Date().toISOString().split("T")[0],
+              odometer: parseFloat(odometer),
+              liters: parseFloat(liters),
+              cost: parseFloat(cost),
+              fillType: fillType,
+              isInitial: false,
+              notes: notes || "",
+            };
+            this.records.push(record);
+            // ترتيب السجلات حسب العداد للتأكد من التسلسل الصحيح
+            this._sortRecords();
+            this.save();
+            this.recalculateAll();
+          }
+
+          // --- تعديل سجل ---
+          editRecord(recordId, updatedData) {
+            const idx = this.records.findIndex((r) => r.id === recordId);
+            if (idx === -1) throw new Error("السجل غير موجود.");
+
+            const record = this.records[idx];
+
+            // السجل الأولي: السماح بتعديل العداد والتاريخ والملاحظات فقط
+            if (record.isInitial) {
+              if (updatedData.odometer !== undefined) {
+                const newOdo = parseFloat(updatedData.odometer);
+                if (newOdo <= 0)
+                  throw new Error("قراءة العداد يجب أن تكون موجبة.");
+                // تحديث العداد في السجل وفي المركبة
+                record.odometer = newOdo;
+                this.vehicle.initialOdometer = newOdo;
+              }
+              if (updatedData.date !== undefined)
+                record.date = updatedData.date;
+              if (updatedData.notes !== undefined)
+                record.notes = updatedData.notes;
+              if (updatedData.initialFuelPercentage !== undefined) {
+                const pct = parseFloat(updatedData.initialFuelPercentage);
+                if (pct < 0 || pct > 100)
+                  throw new Error("نسبة الوقود يجب أن تكون بين 0 و 100.");
+                this.vehicle.initialFuelPercentage = pct;
+              }
+              this._sortRecords();
+              this.save();
+              this.recalculateAll();
+              return;
+            }
+
+            // السجلات العادية
+            if (updatedData.odometer !== undefined) {
+              const newOdo = parseFloat(updatedData.odometer);
+              if (newOdo <= 0)
+                throw new Error("قراءة العداد يجب أن تكون موجبة.");
+              // التحقق من عدم تجاوز حدود السجلات المجاورة
+              const prevOdo = idx > 0 ? this.records[idx - 1].odometer : 0;
+              const nextOdo =
+                idx < this.records.length - 1
+                  ? this.records[idx + 1].odometer
+                  : Infinity;
+              if (newOdo < prevOdo)
+                throw new Error(
+                  `العداد لا يمكن أن يكون أقل من ${prevOdo} (السجل السابق).`,
+                );
+              if (newOdo > nextOdo && nextOdo !== Infinity)
+                throw new Error(
+                  `العداد لا يمكن أن يكون أكبر من ${nextOdo} (السجل التالي).`,
+                );
+              record.odometer = newOdo;
+            }
+            if (updatedData.liters !== undefined) {
+              const l = parseFloat(updatedData.liters);
+              if (l < 0) throw new Error("كمية الوقود لا يمكن أن تكون سالبة.");
+              record.liters = l;
+            }
+            if (updatedData.cost !== undefined) {
+              const c = parseFloat(updatedData.cost);
+              if (c < 0) throw new Error("التكلفة لا يمكن أن تكون سالبة.");
+              record.cost = c;
+            }
+            if (updatedData.fillType !== undefined)
+              record.fillType = updatedData.fillType;
+            if (updatedData.date !== undefined) record.date = updatedData.date;
+            if (updatedData.notes !== undefined)
+              record.notes = updatedData.notes;
+
+            this._sortRecords();
+            this.save();
+            this.recalculateAll();
+          }
+
+          // --- حذف سجل ---
+          deleteRecord(recordId) {
+            const record = this.records.find((r) => r.id === recordId);
+            if (!record) throw new Error("السجل غير موجود.");
+            if (record.isInitial)
+              throw new Error("لا يمكن حذف السجل المرجعي الأولي.");
+            this.records = this.records.filter((r) => r.id !== recordId);
+            this.save();
+            this.recalculateAll();
+          }
+
+          // --- إعادة الحساب الكامل ---
+          recalculateAll() {
+            if (!this.vehicle || this.records.length === 0) {
+              this.computedStats = {};
+              this.monthlyData = [];
+              return;
+            }
+
+            this._sortRecords();
+            const tankCap = this.vehicle.tankCapacity;
+            const initialFuelAmount =
+              tankCap * (this.vehicle.initialFuelPercentage / 100);
+
+            // --- حساب المسافات لكل سجل (باستثناء الأولي) ---
+            // المسافة = العداد الحالي - العداد السابق
+            const computedRecords = this.records.map((rec, idx) => {
+              const dist =
+                idx > 0 ? rec.odometer - this.records[idx - 1].odometer : 0;
+              return {
+                ...rec,
+                _distance: Math.max(0, dist),
+                _consumption: null,
+                _fuelLevel: null,
+                _cycleClose: false,
+              };
+            });
+
+            // --- تحديد دورات الاستهلاك ---
+            // الدورة تبدأ من سجل تعبئة كاملة (أو السجل الأولي) وتنتهي عند تعبئة كاملة تالية
+            const cycles = [];
+            let cycleStartIdx = 0; // السجل الأولي هو بداية الدورة الأولى
+            for (let i = 1; i < computedRecords.length; i++) {
+              if (
+                computedRecords[i].fillType === "full" &&
+                !computedRecords[i].isInitial
+              ) {
+                // إغلاق الدورة عند هذا السجل
+                cycles.push({ startIdx: cycleStartIdx, endIdx: i });
+                cycleStartIdx = i; // الدورة التالية تبدأ من هنا
+              }
+            }
+            // الدورة المفتوحة (لم تغلق بعد) تبقى بدون حساب استهلاك نهائي
+            const openCycleStart = cycleStartIdx;
+
+            // --- حساب استهلاك كل دورة مغلقة ---
+            const cycleConsumptions = new Array(computedRecords.length).fill(
+              null,
+            );
+            cycles.forEach((cycle) => {
+              const startRec = computedRecords[cycle.startIdx];
+              const endRec = computedRecords[cycle.endIdx];
+              // المسافة الكلية للدورة
+              const totalDist = endRec.odometer - startRec.odometer;
+              // مجموع الوقود المضاف خلال الدورة (جميع السجلات من البداية+1 حتى النهاية)
+              let totalFuelAdded = 0;
+              for (let i = cycle.startIdx + 1; i <= cycle.endIdx; i++) {
+                totalFuelAdded += computedRecords[i].liters;
+              }
+              // حساب الوقود المستهلك
+              let fuelConsumed;
+              if (startRec.isInitial) {
+                // الدورة الأولى: بدأنا بكمية initialFuelAmount وانتهينا بخزان ممتلئ
+                fuelConsumed = initialFuelAmount + totalFuelAdded - tankCap;
+              } else {
+                // الدورات اللاحقة: بدأنا بخزان ممتلئ وانتهينا بخزان ممتلئ
+                fuelConsumed = totalFuelAdded;
+              }
+              fuelConsumed = Math.max(0, fuelConsumed);
+              const consumption =
+                totalDist > 0 ? (fuelConsumed / totalDist) * 100 : null;
+              // تخزين الاستهلاك على السجل الختامي للدورة
+              cycleConsumptions[cycle.endIdx] = consumption;
+              computedRecords[cycle.endIdx]._consumption = consumption;
+              computedRecords[cycle.endIdx]._cycleClose = true;
+            });
+
+            // --- تتبع مستوى الوقود عبر جميع السجلات ---
+            let currentFuel = initialFuelAmount;
+            // استخدام متوسط استهلاك معروف لتقدير الوقود المستخدم
+            const allCycleConsumptions = cycles
+              .map((c) => cycleConsumptions[c.endIdx])
+              .filter((c) => c !== null);
+            const avgConsumption =
+              allCycleConsumptions.length > 0
+                ? allCycleConsumptions.reduce((a, b) => a + b, 0) /
+                  allCycleConsumptions.length
+                : null;
+
+            for (let i = 0; i < computedRecords.length; i++) {
+              const rec = computedRecords[i];
+              if (i === 0) {
+                // السجل الأولي
+                rec._fuelLevel = initialFuelAmount;
+                continue;
+              }
+              const dist = rec._distance;
+              // تقدير الوقود المستخدم للمسافة المقطوعة
+              let fuelUsed = 0;
+              if (avgConsumption && dist > 0) {
+                fuelUsed = dist * (avgConsumption / 100);
+              }
+              // إذا كان هذا السجل يغلق دورة، نستخدم استهلاك الدورة لتقدير أدق
+              if (rec._cycleClose && rec._consumption && dist > 0) {
+                fuelUsed = dist * (rec._consumption / 100);
+              }
+              currentFuel = currentFuel - fuelUsed + rec.liters;
+              // إذا كان السجل تعبئة كاملة، نعيد ضبط مستوى الوقود لسعة الخزان
+              if (rec.fillType === "full" && !rec.isInitial) {
+                currentFuel = tankCap;
+              }
+              // التثبيت بين 0 وسعة الخزان
+              currentFuel = Math.max(0, Math.min(tankCap, currentFuel));
+              rec._fuelLevel = currentFuel;
+            }
+
+            // --- تجميع الإحصائيات العامة ---
+            const totalDistance = computedRecords.reduce(
+              (sum, r, i) => sum + (i > 0 ? r._distance : 0),
+              0,
+            );
+            const totalLiters = computedRecords.reduce(
+              (sum, r) => sum + (r.isInitial ? 0 : r.liters),
+              0,
+            );
+            const totalCost = computedRecords.reduce(
+              (sum, r) => sum + (r.isInitial ? 0 : r.cost),
+              0,
+            );
+            const lastOdometer =
+              computedRecords[computedRecords.length - 1].odometer;
+            const finalFuelLevel =
+              computedRecords[computedRecords.length - 1]._fuelLevel;
+            const fuelPercentage =
+              tankCap > 0 ? (finalFuelLevel / tankCap) * 100 : 0;
+            const overallConsumption =
+              totalDistance > 0 ? (totalLiters / totalDistance) * 100 : null;
+            const remainingRange =
+              overallConsumption && overallConsumption > 0
+                ? (finalFuelLevel / overallConsumption) * 100
+                : null;
+
+            this.computedStats = {
+              totalDistance,
+              totalLiters,
+              totalCost,
+              lastOdometer,
+              currentFuelLevel: finalFuelLevel,
+              fuelPercentage,
+              overallConsumption,
+              remainingRange,
+              avgCostPerKm:
+                totalDistance > 0 ? totalCost / totalDistance : null,
+              avgCostPerLiter: totalLiters > 0 ? totalCost / totalLiters : null,
+              cycleConsumptions,
+              computedRecords,
+              allCycleConsumptions,
+            };
+
+            // --- حساب الملخص الشهري ---
+            this._computeMonthlySummary(computedRecords);
+          }
+
+          // --- حساب الملخص الشهري ---
+          _computeMonthlySummary(computedRecords) {
+            const monthlyMap = {};
+            computedRecords.forEach((rec, idx) => {
+              if (rec.isInitial) return; // السجل الأولي لا يُحتسب
+              const dist = rec._distance;
+              const dateStr = rec.date;
+              if (!dateStr) return;
+              const monthKey = dateStr.substring(0, 7); // YYYY-MM
+              if (!monthlyMap[monthKey]) {
+                monthlyMap[monthKey] = {
+                  month: monthKey,
+                  distance: 0,
+                  liters: 0,
+                  cost: 0,
+                };
+              }
+              monthlyMap[monthKey].distance += dist;
+              monthlyMap[monthKey].liters += rec.liters;
+              monthlyMap[monthKey].cost += rec.cost;
+            });
+            // تحويل إلى مصفوفة وترتيب تنازلي
+            this.monthlyData = Object.values(monthlyMap).sort((a, b) =>
+              b.month.localeCompare(a.month),
+            );
+            // حساب المؤشرات لكل شهر
+            this.monthlyData.forEach((m) => {
+              m.consumption =
+                m.distance > 0 ? (m.liters / m.distance) * 100 : null;
+              m.avgCostPerKm = m.distance > 0 ? m.cost / m.distance : null;
+              m.avgCostPerLiter = m.liters > 0 ? m.cost / m.liters : null;
+            });
+          }
+
+          // --- دوال مساعدة ---
+          _generateId() {
+            return (
+              "rec_" +
+              Date.now().toString(36) +
+              "_" +
+              Math.random().toString(36).substr(2, 6)
+            );
+          }
+          _sortRecords() {
+            this.records.sort((a, b) => a.odometer - b.odometer);
+          }
+          _getLastOdometer() {
+            if (this.records.length === 0) return 0;
+            this._sortRecords();
+            return this.records[this.records.length - 1].odometer;
+          }
+          _formatNumber(val, decimals = 1) {
+            if (val === null || val === undefined || isNaN(val)) return "—";
+            return Number(val).toFixed(decimals);
+          }
+          _formatCurrency(val) {
+            if (val === null || val === undefined || isNaN(val)) return "—";
+            return Number(val).toFixed(2);
+          }
+          _getMonthNameArabic(monthKey) {
+            const [y, m] = monthKey.split("-");
+            const monthNames = [
+              "يناير",
+              "فبراير",
+              "مارس",
+              "إبريل",
+              "مايو",
+              "يونيو",
+              "يوليو",
+              "أغسطس",
+              "سبتمبر",
+              "أكتوبر",
+              "نوفمبر",
+              "ديسمبر",
+            ];
+            return `${monthNames[parseInt(m) - 1]} ${y}`;
+          }
+        }
+
+        // ==================== مدير واجهة المستخدم ====================
+        class UIManager {
+          constructor(tracker) {
+            this.tracker = tracker;
+            this.appContainer = document.getElementById("app-container");
+            this.toastContainer = document.getElementById("toast-container");
+            this.modalContainer = document.getElementById("modal-container");
+          }
+
+          // --- عرض الإشعارات ---
+          showToast(message, type = "") {
+            const toast = document.createElement("div");
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            this.toastContainer.appendChild(toast);
+            // إزالة بعد انتهاء الأنيميشن
+            setTimeout(() => {
+              if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 3000);
+          }
+
+          // --- عرض نافذة تأكيد ---
+          showConfirm(message, onConfirm) {
+            const overlay = document.createElement("div");
+            overlay.className = "modal-overlay";
+            overlay.innerHTML = `
+                        <div class="modal" style="max-width:400px;">
+                            <div class="confirm-content">
+                                <span class="warn-icon">⚠️</span>
+                                <p>${message}</p>
+                            </div>
+                            <div class="modal-actions" style="justify-content:center;">
+                                <button class="btn btn-ghost btn-cancel">إلغاء</button>
+                                <button class="btn btn-danger btn-confirm">تأكيد الحذف</button>
+                            </div>
+                        </div>
+                    `;
+            this.modalContainer.appendChild(overlay);
+
+            const close = () => {
+              if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            };
+            overlay
+              .querySelector(".btn-cancel")
+              .addEventListener("click", close);
+            overlay
+              .querySelector(".btn-confirm")
+              .addEventListener("click", () => {
+                close();
+                if (onConfirm) onConfirm();
+              });
+            overlay.addEventListener("click", (e) => {
+              if (e.target === overlay) close();
+            });
+          }
+
+          // --- عرض نافذة تعديل/إضافة ---
+          showRecordModal(record = null, onSave) {
+            const isEdit = !!record;
+            const isInitial = record && record.isInitial;
+            const title = isInitial
+              ? "تعديل السجل المرجعي الأولي"
+              : isEdit
+                ? "تعديل سجل التزويد"
+                : "إضافة سجل تزويد جديد";
+
+            const overlay = document.createElement("div");
+            overlay.className = "modal-overlay";
+            overlay.innerHTML = `
+                        <div class="modal">
+                            <h3>${title}</h3>
+                            <form id="modal-form">
+                                ${
+                                  isInitial
+                                    ? `
+                                    <div class="form-group">
+                                        <label>📅 التاريخ</label>
+                                        <input type="date" id="mf-date" value="${record.date || ""}" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>🔢 قراءة العداد (كم)</label>
+                                        <input type="number" id="mf-odometer" value="${record.odometer}" step="1" min="1" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>⛽ نسبة الوقود الأولية (%)</label>
+                                        <input type="number" id="mf-fuelpct" value="${this.tracker.vehicle ? this.tracker.vehicle.initialFuelPercentage : 100}" step="0.1" min="0" max="100" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>📝 ملاحظات</label>
+                                        <textarea id="mf-notes">${record.notes || ""}</textarea>
+                                    </div>
+                                `
+                                    : `
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>📅 التاريخ</label>
+                                            <input type="date" id="mf-date" value="${record ? record.date : new Date().toISOString().split("T")[0]}" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>🔢 قراءة العداد (كم)</label>
+                                            <input type="number" id="mf-odometer" value="${record ? record.odometer : ""}" step="1" min="1" placeholder="مثال: 12500" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>⛽ كمية الوقود (لتر)</label>
+                                            <input type="number" id="mf-liters" value="${record ? record.liters : ""}" step="0.01" min="0" placeholder="مثال: 45.5" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>💰 التكلفة (ريال/دينار)</label>
+                                            <input type="number" id="mf-cost" value="${record ? record.cost : ""}" step="0.01" min="0" placeholder="مثال: 120.00" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>🏷️ نوع التعبئة</label>
+                                        <select id="mf-filltype" required>
+                                            <option value="full" ${record && record.fillType === "full" ? "selected" : ""}>تعبئة كاملة ⛽</option>
+                                            <option value="partial" ${record && record.fillType === "partial" ? "selected" : ""}>تعبئة جزئية 🫗</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>📝 ملاحظات (اختياري)</label>
+                                        <textarea id="mf-notes">${record ? record.notes || "" : ""}</textarea>
+                                    </div>
+                                `
+                                }
+                            </form>
+                            <div class="modal-actions">
+                                <button class="btn btn-ghost btn-cancel">إلغاء</button>
+                                <button class="btn btn-primary btn-save">💾 حفظ</button>
+                            </div>
+                        </div>
+                    `;
+            this.modalContainer.appendChild(overlay);
+
+            const close = () => {
+              if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            };
+
+            overlay
+              .querySelector(".btn-cancel")
+              .addEventListener("click", close);
+            overlay.querySelector(".btn-save").addEventListener("click", () => {
+              const data = {};
+              if (isInitial) {
+                data.date = document.getElementById("mf-date").value;
+                data.odometer = document.getElementById("mf-odometer").value;
+                data.initialFuelPercentage =
+                  document.getElementById("mf-fuelpct").value;
+                data.notes = document.getElementById("mf-notes").value;
+              } else {
+                data.date = document.getElementById("mf-date").value;
+                data.odometer = document.getElementById("mf-odometer").value;
+                data.liters = document.getElementById("mf-liters").value;
+                data.cost = document.getElementById("mf-cost").value;
+                data.fillType = document.getElementById("mf-filltype").value;
+                data.notes = document.getElementById("mf-notes").value;
+              }
+              try {
+                onSave(data);
+                close();
+              } catch (err) {
+                this.showToast(err.message, "error");
+              }
+            });
+            overlay.addEventListener("click", (e) => {
+              if (e.target === overlay) close();
+            });
+          }
+
+          // --- عرض معالج الإعداد الأول ---
+          renderSetupWizard() {
+            this.appContainer.innerHTML = `
+                        <div class="wizard-overlay">
+                            <div class="wizard-card">
+                                <div class="wizard-icon">🚗</div>
+                                <h2>أهلاً بك في متتبع استهلاك الوقود</h2>
+                                <p>لنبدأ بإعداد بيانات مركبتك للمرة الأولى</p>
+                                <form id="setup-form">
+                                    <div class="form-group">
+                                        <label>🏷️ اسم المركبة (اختياري)</label>
+                                        <input type="text" id="setup-name" placeholder="مثال: تويوتا كامري 2023" maxlength="50">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>⛽ سعة خزان الوقود (لتر) *</label>
+                                        <input type="number" id="setup-capacity" placeholder="مثال: 60" step="0.1" min="10" max="500" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>🔢 قراءة العداد الحالية (كم) *</label>
+                                        <input type="number" id="setup-odometer" placeholder="مثال: 12000" step="1" min="0" max="9999999" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>📊 نسبة الوقود الحالية (%) *</label>
+                                        <input type="number" id="setup-fuelpct" placeholder="مثال: 75" step="0.1" min="0" max="100" value="100" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:14px;font-size:1rem;">
+                                        ✅ بدء الاستخدام
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    `;
+            document
+              .getElementById("setup-form")
+              .addEventListener("submit", (e) => {
+                e.preventDefault();
+                const name = document.getElementById("setup-name").value.trim();
+                const capacity = parseFloat(
+                  document.getElementById("setup-capacity").value,
+                );
+                const odometer = parseFloat(
+                  document.getElementById("setup-odometer").value,
+                );
+                const fuelPct = parseFloat(
+                  document.getElementById("setup-fuelpct").value,
+                );
+
+                if (
+                  !capacity ||
+                  capacity <= 0 ||
+                  !odometer ||
+                  odometer < 0 ||
+                  isNaN(fuelPct) ||
+                  fuelPct < 0 ||
+                  fuelPct > 100
+                ) {
+                  this.showToast(
+                    "يرجى تعبئة جميع الحقول المطلوبة بقيم صحيحة.",
+                    "error",
+                  );
+                  return;
+                }
+                try {
+                  this.tracker.setupVehicle(name, capacity, odometer, fuelPct);
+                  this.showToast("تم إعداد المركبة بنجاح! 🎉", "success");
+                  this.renderAll();
+                } catch (err) {
+                  this.showToast(err.message, "error");
+                }
+              });
+          }
+
+          // --- عرض التطبيق الرئيسي ---
+          renderAll() {
+            if (this.tracker.isFirstRun()) {
+              this.renderSetupWizard();
+              return;
+            }
+            // التأكد من أن الحسابات محدثة
+            this.tracker.recalculateAll();
+            this.renderDashboard();
+            this.renderRecordForm();
+            this.renderRecordsTable();
+            this.renderMonthlySummary();
+            this.renderPrintButton();
+          }
+
+          // --- عرض لوحة المعلومات ---
+          renderDashboard() {
+            const v = this.tracker.vehicle;
+            const s = this.tracker.computedStats;
+            if (!v || !s) return;
+
+            const fuelPct = s.fuelPercentage || 0;
+            const gaugeColor =
+              fuelPct > 30 ? "green" : fuelPct > 15 ? "yellow" : "red";
+
+            // إنشاء أو تحديث قسم لوحة المعلومات
+            let dashSection = document.getElementById("dashboard-section");
+            if (!dashSection) {
+              dashSection = document.createElement("div");
+              dashSection.id = "dashboard-section";
+              this.appContainer.appendChild(dashSection);
+            }
+
+            dashSection.innerHTML = `
+                        <div class="card" style="margin-bottom:16px;">
+                            <div class="card-header">
+                                <h2><span class="icon">📊</span> لوحة المعلومات — ${this._escapeHtml(v.name)}</h2>
+                                <span class="text-sm text-muted">سعة الخزان: <strong>${this.tracker._formatNumber(v.tankCapacity)} لتر</strong></span>
+                            </div>
+                            <div class="dashboard-grid">
+                                <div class="stat-card">
+                                    <div class="stat-icon">🔢</div>
+                                    <div class="stat-value">${this.tracker._formatNumber(s.lastOdometer, 0)}</div>
+                                    <div class="stat-label">آخر قراءة عداد (كم)</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">🛣️</div>
+                                    <div class="stat-value">${this.tracker._formatNumber(s.totalDistance, 0)}</div>
+                                    <div class="stat-label">إجمالي المسافة المقطوعة (كم)</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">⛽</div>
+                                    <div class="stat-value">${this.tracker._formatNumber(s.totalLiters, 1)}</div>
+                                    <div class="stat-label">إجمالي الوقود (لتر)</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">💰</div>
+                                    <div class="stat-value">${this.tracker._formatCurrency(s.totalCost)}</div>
+                                    <div class="stat-label">إجمالي المصروفات</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">📈</div>
+                                    <div class="stat-value">${s.overallConsumption !== null ? this.tracker._formatNumber(s.overallConsumption, 2) : "—"}</div>
+                                    <div class="stat-label">متوسط الاستهلاك (لتر/100كم)</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">🔋</div>
+                                    <div class="stat-value">${this.tracker._formatNumber(s.currentFuelLevel, 1)}</div>
+                                    <div class="stat-label">الوقود المتبقي (لتر)</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">🎯</div>
+                                    <div class="stat-value">${s.remainingRange !== null ? this.tracker._formatNumber(s.remainingRange, 0) : "—"}</div>
+                                    <div class="stat-label">المدى المتوقع (كم)</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">💵</div>
+                                    <div class="stat-value">${s.avgCostPerKm !== null ? this.tracker._formatCurrency(s.avgCostPerKm) : "—"}</div>
+                                    <div class="stat-label">متوسط التكلفة لكل كم</div>
+                                </div>
+                            </div>
+                            <!-- مقياس الوقود -->
+                            <div class="gauge-container mt-4">
+                                <div class="gauge-bar-outer">
+                                    <div class="gauge-bar-inner ${gaugeColor}" style="width:${Math.min(100, Math.max(0, fuelPct))}%;"></div>
+                                </div>
+                                <div class="gauge-info">
+                                    <span>نسبة الوقود: <strong>${this.tracker._formatNumber(fuelPct, 1)}%</strong></span>
+                                    <span>متبقي: <strong>${this.tracker._formatNumber(s.currentFuelLevel, 1)}</strong> / <strong>${this.tracker._formatNumber(v.tankCapacity, 1)}</strong> لتر</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+          }
+
+          // --- عرض نموذج إضافة سجل ---
+          renderRecordForm() {
+            let formSection = document.getElementById("record-form-card");
+            if (!formSection) {
+              formSection = document.createElement("div");
+              formSection.id = "record-form-card";
+              formSection.className = "card no-print";
+              // إدراج بعد لوحة المعلومات
+              const dashSection = document.getElementById("dashboard-section");
+              if (dashSection && dashSection.nextSibling) {
+                this.appContainer.insertBefore(
+                  formSection,
+                  dashSection.nextSibling,
+                );
+              } else {
+                this.appContainer.appendChild(formSection);
+              }
+            }
+
+            const lastOdo = this.tracker._getLastOdometer();
+            formSection.innerHTML = `
+                        <div class="card-header">
+                            <h2><span class="icon">⛽</span> إضافة سجل تزويد جديد</h2>
+                        </div>
+                        <form id="add-record-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>📅 التاريخ</label>
+                                    <input type="date" id="ar-date" value="${new Date().toISOString().split("T")[0]}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>🔢 قراءة العداد (كم) — آخر قراءة: <strong>${this.tracker._formatNumber(lastOdo, 0)}</strong></label>
+                                    <input type="number" id="ar-odometer" step="1" min="${lastOdo}" placeholder="يجب أن يكون ≥ ${this.tracker._formatNumber(lastOdo, 0)}" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>⛽ كمية الوقود (لتر)</label>
+                                    <input type="number" id="ar-liters" step="0.01" min="0.01" placeholder="مثال: 45.5" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>💰 التكلفة</label>
+                                    <input type="number" id="ar-cost" step="0.01" min="0" placeholder="مثال: 120.00" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>🏷️ نوع التعبئة</label>
+                                    <select id="ar-filltype" required>
+                                        <option value="full">تعبئة كاملة ⛽</option>
+                                        <option value="partial">تعبئة جزئية 🫗</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>📝 ملاحظات (اختياري)</label>
+                                    <input type="text" id="ar-notes" placeholder="أي ملاحظات إضافية" maxlength="200">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;">
+                                ➕ إضافة السجل
+                            </button>
+                        </form>
+                    `;
+
+            document
+              .getElementById("add-record-form")
+              .addEventListener("submit", (e) => {
+                e.preventDefault();
+                const odometer = document.getElementById("ar-odometer").value;
+                const liters = document.getElementById("ar-liters").value;
+                const cost = document.getElementById("ar-cost").value;
+                const fillType = document.getElementById("ar-filltype").value;
+                const date = document.getElementById("ar-date").value;
+                const notes = document.getElementById("ar-notes").value;
+
+                try {
+                  this.tracker.addRecord(
+                    odometer,
+                    liters,
+                    cost,
+                    fillType,
+                    date,
+                    notes,
+                  );
+                  this.showToast("تمت إضافة السجل بنجاح ✅", "success");
+                  this.renderAll();
+                } catch (err) {
+                  this.showToast(err.message, "error");
+                }
+              });
+          }
+
+          // --- عرض جدول السجلات ---
+          renderRecordsTable() {
+            let tableSection = document.getElementById("records-section");
+            if (!tableSection) {
+              tableSection = document.createElement("div");
+              tableSection.id = "records-section";
+              tableSection.className = "card";
+              const formCard = document.getElementById("record-form-card");
+              if (formCard && formCard.nextSibling) {
+                this.appContainer.insertBefore(
+                  tableSection,
+                  formCard.nextSibling,
+                );
+              } else {
+                this.appContainer.appendChild(tableSection);
+              }
+            }
+
+            const records = this.tracker.records;
+            const computed = this.tracker.computedStats.computedRecords || [];
+
+            if (records.length <= 1) {
+              tableSection.innerHTML = `
+                            <div class="card-header">
+                                <h2><span class="icon">📋</span> سجلات التزويد</h2>
+                            </div>
+                            <div class="empty-state">
+                                <div class="empty-icon">📭</div>
+                                <p>لا توجد سجلات تزويد بعد.</p>
+                                <p class="text-sm text-muted">أضف أول سجل تزويد باستخدام النموذج أعلاه.</p>
+                            </div>
+                        `;
+              return;
+            }
+
+            let rows = "";
+            computed.forEach((rec, idx) => {
+              const dist = idx > 0 ? rec._distance : 0;
+              const consumption = rec._consumption;
+              let badgeClass = "badge-initial";
+              let badgeText = "مرجعي";
+              if (rec.fillType === "full") {
+                badgeClass = "badge-full";
+                badgeText = "كاملة";
+              } else if (rec.fillType === "partial") {
+                badgeClass = "badge-partial";
+                badgeText = "جزئية";
+              }
+              if (rec.isInitial) {
+                badgeClass = "badge-initial";
+                badgeText = "مرجعي";
+              }
+
+              rows += `
+                            <tr>
+                                <td>${rec.date || "—"}</td>
+                                <td><strong>${this.tracker._formatNumber(rec.odometer, 0)}</strong></td>
+                                <td>${idx > 0 ? this.tracker._formatNumber(dist, 0) : "—"}</td>
+                                <td>${rec.isInitial ? "—" : this.tracker._formatNumber(rec.liters, 2)}</td>
+                                <td>${rec.isInitial ? "—" : this.tracker._formatCurrency(rec.cost)}</td>
+                                <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+                                <td>${consumption !== null ? '<span class="highlight">' + this.tracker._formatNumber(consumption, 2) + "</span>" : "—"}</td>
+                                <td class="no-print">
+                                    <button class="btn btn-sm btn-ghost edit-btn" data-id="${rec.id}">✏️</button>
+                                    ${!rec.isInitial ? `<button class="btn btn-sm btn-ghost delete-btn" data-id="${rec.id}" style="color:var(--danger);">🗑️</button>` : ""}
+                                </td>
+                            </tr>
+                        `;
+            });
+
+            tableSection.innerHTML = `
+                        <div class="card-header">
+                            <h2><span class="icon">📋</span> سجلات التزويد (${records.length - 1} سجل)</h2>
+                            <span class="text-sm text-muted">مرتبة حسب قراءة العداد تصاعديًا</span>
+                        </div>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>التاريخ</th>
+                                        <th>العداد (كم)</th>
+                                        <th>المسافة (كم)</th>
+                                        <th>الوقود (لتر)</th>
+                                        <th>التكلفة</th>
+                                        <th>النوع</th>
+                                        <th>الاستهلاك (لتر/100كم)</th>
+                                        <th class="no-print">إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rows}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-sm text-muted mt-2">💡 الاستهلاك يُعرض فقط عند السجلات التي تُغلق دورة (تعبئة كاملة).</div>
+                    `;
+
+            // ربط أزرار التعديل والحذف
+            tableSection.querySelectorAll(".edit-btn").forEach((btn) => {
+              btn.addEventListener("click", () => {
+                const recId = btn.getAttribute("data-id");
+                const rec = this.tracker.records.find((r) => r.id === recId);
+                if (!rec) return;
+                this.showRecordModal(rec, (data) => {
+                  try {
+                    this.tracker.editRecord(recId, data);
+                    this.showToast("تم تعديل السجل بنجاح ✅", "success");
+                    this.renderAll();
+                  } catch (err) {
+                    this.showToast(err.message, "error");
+                  }
+                });
+              });
+            });
+            tableSection.querySelectorAll(".delete-btn").forEach((btn) => {
+              btn.addEventListener("click", () => {
+                const recId = btn.getAttribute("data-id");
+                this.showConfirm(
+                  "هل أنت متأكد من حذف هذا السجل؟ لا يمكن التراجع عن هذا الإجراء.",
+                  () => {
+                    try {
+                      this.tracker.deleteRecord(recId);
+                      this.showToast("تم حذف السجل بنجاح 🗑️", "success");
+                      this.renderAll();
+                    } catch (err) {
+                      this.showToast(err.message, "error");
+                    }
+                  },
+                );
+              });
+            });
+          }
+
+          // --- عرض الملخص الشهري ---
+          renderMonthlySummary() {
+            let monthlySection = document.getElementById("monthly-section");
+            if (!monthlySection) {
+              monthlySection = document.createElement("div");
+              monthlySection.id = "monthly-section";
+              monthlySection.className = "card";
+              const recordsSection = document.getElementById("records-section");
+              if (recordsSection && recordsSection.nextSibling) {
+                this.appContainer.insertBefore(
+                  monthlySection,
+                  recordsSection.nextSibling,
+                );
+              } else {
+                this.appContainer.appendChild(monthlySection);
+              }
+            }
+
+            const monthly = this.tracker.monthlyData;
+
+            if (monthly.length === 0) {
+              monthlySection.innerHTML = `
+                            <div class="card-header">
+                                <h2><span class="icon">📅</span> الملخص الشهري</h2>
+                            </div>
+                            <div class="empty-state">
+                                <div class="empty-icon">📊</div>
+                                <p>لا توجد بيانات كافية لعرض الملخص الشهري.</p>
+                            </div>
+                        `;
+              return;
+            }
+
+            let rows = "";
+            monthly.forEach((m) => {
+              rows += `
+                            <tr>
+                                <td><strong>${this.tracker._getMonthNameArabic(m.month)}</strong></td>
+                                <td>${this.tracker._formatNumber(m.distance, 0)}</td>
+                                <td>${this.tracker._formatNumber(m.liters, 1)}</td>
+                                <td>${this.tracker._formatCurrency(m.cost)}</td>
+                                <td>${m.consumption !== null ? this.tracker._formatNumber(m.consumption, 2) : "—"}</td>
+                                <td>${m.avgCostPerKm !== null ? this.tracker._formatCurrency(m.avgCostPerKm) : "—"}</td>
+                                <td>${m.avgCostPerLiter !== null ? this.tracker._formatCurrency(m.avgCostPerLiter) : "—"}</td>
+                            </tr>
+                        `;
+            });
+
+            monthlySection.innerHTML = `
+                        <div class="card-header">
+                            <h2><span class="icon">📅</span> الملخص الشهري</h2>
+                            <span class="text-sm text-muted">يُحسب ديناميكيًا من السجلات</span>
+                        </div>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>الشهر</th>
+                                        <th>المسافة (كم)</th>
+                                        <th>الوقود (لتر)</th>
+                                        <th>التكلفة</th>
+                                        <th>الاستهلاك (لتر/100كم)</th>
+                                        <th>متوسط التكلفة/كم</th>
+                                        <th>متوسط التكلفة/لتر</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rows}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+          }
+
+          // --- زر الطباعة ---
+          renderPrintButton() {
+            let printSection = document.getElementById("print-section");
+            if (!printSection) {
+              printSection = document.createElement("div");
+              printSection.id = "print-section";
+              printSection.className = "text-center mt-4 no-print";
+              this.appContainer.appendChild(printSection);
+            }
+            printSection.innerHTML = `
+                        <button class="btn btn-outline" onclick="window.print();" style="padding:12px 24px;font-size:1rem;">
+                            🖨️ طباعة التقرير
+                        </button>
+                        <button class="btn btn-ghost" id="reset-btn" style="padding:12px 24px;font-size:1rem;color:var(--danger);margin-right:8px;">
+                            🔄 إعادة تعيين جميع البيانات
+                        </button>
+                    `;
+            document
+              .getElementById("reset-btn")
+              .addEventListener("click", () => {
+                this.showConfirm(
+                  "⚠️ تحذير: هذا سيؤدي إلى حذف جميع البيانات بشكل دائم. لا يمكن التراجع! هل تريد المتابعة؟",
+                  () => {
+                    localStorage.removeItem(this.tracker.STORAGE_KEY);
+                    this.tracker.vehicle = null;
+                    this.tracker.records = [];
+                    this.tracker.computedStats = {};
+                    this.tracker.monthlyData = [];
+                    this.appContainer.innerHTML = "";
+                    this.showToast("تمت إعادة التعيين بنجاح.", "success");
+                    this.renderAll();
+                  },
+                );
+              });
+          }
+
+          // --- دالة مساعدة ---
+          _escapeHtml(str) {
+            if (!str) return "";
+            const div = document.createElement("div");
+            div.textContent = str;
+            return div.innerHTML;
+          }
+
+          // --- بدء التطبيق ---
+          init() {
+            this.tracker.load();
+            this.renderAll();
+          }
+        }
+
+        // ==================== تشغيل التطبيق ====================
+        const tracker = new FuelTracker();
+        const ui = new UIManager(tracker);
+        ui.init();
+
+        // تعريض المتتبع للكونسول لأغراض التصحيح فقط
+        console.log(
+          "🚗 FuelTracker initialized. Access via: window.fuelTracker",
+        );
+        window.fuelTracker = tracker;
+      })();
+    </script>
+  </body>
+</html>
