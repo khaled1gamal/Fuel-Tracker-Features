@@ -954,8 +954,32 @@
               computedRecords[computedRecords.length - 1]._fuelLevel;
             const fuelPercentage =
               tankCap > 0 ? (finalFuelLevel / tankCap) * 100 : 0;
-            const overallConsumption =
-              totalDistance > 0 ? (totalLiters / totalDistance) * 100 : null;
+            
+            // حساب متوسط الاستهلاك من الدورات المكتملة فقط (الحساب الصحيح)
+            let totalConsumptionDistance = 0;
+            let totalConsumptionFuel = 0;
+            cycles.forEach((cycle) => {
+              const startRec = computedRecords[cycle.startIdx];
+              const endRec = computedRecords[cycle.endIdx];
+              const totalDist = endRec.odometer - startRec.odometer;
+              let totalFuelAdded = 0;
+              for (let i = cycle.startIdx + 1; i <= cycle.endIdx; i++) {
+                totalFuelAdded += computedRecords[i].liters;
+              }
+              let fuelConsumed;
+              if (startRec.isInitial) {
+                fuelConsumed = initialFuelAmount + totalFuelAdded - tankCap;
+              } else {
+                fuelConsumed = totalFuelAdded;
+              }
+              fuelConsumed = Math.max(0, fuelConsumed);
+              totalConsumptionDistance += totalDist;
+              totalConsumptionFuel += fuelConsumed;
+            });
+            const overallConsumption = 
+              totalConsumptionDistance > 0 
+                ? (totalConsumptionFuel / totalConsumptionDistance) * 100 
+                : null;
             const remainingRange =
               overallConsumption && overallConsumption > 0
                 ? (finalFuelLevel / overallConsumption) * 100
