@@ -648,24 +648,45 @@
             if (raw) {
               try {
                 const data = JSON.parse(raw);
-                this.vehicle = data.vehicle || null;
-                this.records = data.records || [];
-              } catch (e) {
-                this.vehicle = null;
-                this.records = [];
+                // التحقق من صحة البيانات
+                if (data.vehicle && typeof data.vehicle === "object") {
+                  this.vehicle = data.vehicle;
+                }
+                if (Array.isArray(data.records)) {
+                  this.records = data.records.filter(
+                    (rec) =>
+                      rec &&
+                      typeof rec === "object" &&
+                      rec.id &&
+                      rec.odometer &&
+                      rec.date
+                  );
+                }
+              } catch (err) {
+                console.error("خطأ في تحميل البيانات المحفوظة:", err);
+                // إذا حدث خطأ في المحلل، نتجاهل البيانات التالفة
               }
-            } else {
-              this.vehicle = null;
-              this.records = [];
             }
           }
 
           save() {
-            const data = {
-              vehicle: this.vehicle,
-              records: this.records,
-            };
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+            try {
+              const data = {
+                vehicle: this.vehicle,
+                records: this.records.filter(
+                  (rec) =>
+                    rec && typeof rec === "object" && rec.id && rec.odometer
+                ),
+              };
+              localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+            } catch (err) {
+              console.error("خطأ في حفظ البيانات:", err);
+              if (err.name === "QuotaExceededError") {
+                alert(
+                  "تنبيه: لقد امتلأت مساحة التخزين. يرجى حذف بعض البيانات القديمة."
+                );
+              }
+            }
           }
 
           isFirstRun() {
@@ -698,34 +719,47 @@
 
           // --- إضافة سجل تزويد ---
           addRecord(odometer, liters, cost, fillType, date, notes) {
+            // تحويل البيانات إلى أرقام
+            const numOdometer = parseFloat(odometer);
+            const numLiters = parseFloat(liters);
+            const numCost = parseFloat(cost);
+
             // التحقق من صحة البيانات
-            if (
-              parseFloat(odometer) <= 0 ||
-              parseFloat(liters) < 0 ||
-              parseFloat(cost) < 0
-            ) {
-              throw new Error("يجب أن تكون القيم موجبة.");
+            if (isNaN(numOdometer) || numOdometer <= 0) {
+              throw new Error("قراءة العداد يجب أن تكون رقمًا موجبًا.");
             }
+            if (isNaN(numLiters) || numLiters < 0) {
+              throw new Error("كمية الوقود يجب أن تكون رقمًا موجبًا أو صفر.");
+            }
+            if (isNaN(numCost) || numCost < 0) {
+              throw new Error("التكلفة يجب أن تكون رقمًا موجبًا أو صفر.");
+            }
+
             // التحقق من أن العداد لا يقل عن آخر قراءة
             const lastOdometer = this._getLastOdometer();
-            if (parseFloat(odometer) < lastOdometer) {
+            if (numOdometer < lastOdometer) {
               throw new Error(
-                `قراءة العداد (${parseFloat(odometer)}) لا يمكن أن تكون أقل من آخر قراءة (${lastOdometer}).`,
+                `قراءة العداد (${numOdometer}) لا يمكن أن تكون أقل من آخر قراءة (${lastOdometer}).`,
               );
             }
-            if (fillType === "full" && parseFloat(liters) <= 0) {
+            if (fillType === "full" && numLiters <= 0) {
               throw new Error("تعبئة كاملة تتطلب كمية وقود أكبر من صفر.");
+            }
+            
+            // التحقق من تاريخ صحيح
+            if (date && isNaN(new Date(date).getTime())) {
+              throw new Error("التاريخ غير صحيح.");
             }
 
             const record = {
               id: this._generateId(),
               date: date || new Date().toISOString().split("T")[0],
-              odometer: parseFloat(odometer),
-              liters: parseFloat(liters),
-              cost: parseFloat(cost),
-              fillType: fillType,
+              odometer: numOdometer,
+              liters: numLiters,
+              cost: numCost,
+              fillType: fillType || "full",
               isInitial: false,
-              notes: notes || "",
+              notes: (notes || "").trim(),
             };
             this.records.push(record);
             // ترتيب السجلات حسب العداد للتأكد من التسلسل الصحيح
@@ -822,6 +856,35 @@
 
           // --- إعادة الحساب الكامل ---
           recalculateAll() {
+            // التحقق من البيانات الأساسية
+            if (!this.vehicle) {
+              this.computedStats = {};
+              this.monthlyData = [];
+              return;
+            }
+
+            if (this.records.length === 0) {
+              const initialFuelAmount =
+                this.vehicle.tankCapacity *
+                (this.vehicle.initialFuelPercentage / 100);
+              this.computedStats = {
+                totalDistance: 0,
+                totalLiters: 0,
+                totalCost: 0,
+                overallConsumption: null,
+                remainingRange: null,
+                avgCostPerKm: null,
+                avgCostPerLiter: null,
+                currentFuelLevel: initialFuelAmount,
+                fuelPercentage: this.vehicle.initialFuelPercentage,
+                lastOdometer: this.vehicle.initialOdometer,
+                computedRecords: [],
+                cycleConsumptions: [],
+                allCycleConsumptions: [],
+              };
+              this.monthlyData = [];
+              return;
+            }
             if (!this.vehicle || this.records.length === 0) {
               this.computedStats = {};
               this.monthlyData = [];
@@ -958,24 +1021,18 @@
             // حساب متوسط الاستهلاك من الدورات المكتملة فقط (الحساب الصحيح)
             let totalConsumptionDistance = 0;
             let totalConsumptionFuel = 0;
+            
             cycles.forEach((cycle) => {
-              const startRec = computedRecords[cycle.startIdx];
-              const endRec = computedRecords[cycle.endIdx];
-              const totalDist = endRec.odometer - startRec.odometer;
-              let totalFuelAdded = 0;
-              for (let i = cycle.startIdx + 1; i <= cycle.endIdx; i++) {
-                totalFuelAdded += computedRecords[i].liters;
-              }
-              let fuelConsumed;
-              if (startRec.isInitial) {
-                fuelConsumed = initialFuelAmount + totalFuelAdded - tankCap;
-              } else {
-                fuelConsumed = totalFuelAdded;
-              }
-              fuelConsumed = Math.max(0, fuelConsumed);
-              totalConsumptionDistance += totalDist;
+              const { fuelConsumed, distance } = this._calculateCycleConsumption(
+                computedRecords,
+                cycle,
+                initialFuelAmount,
+                tankCap
+              );
+              totalConsumptionDistance += distance;
               totalConsumptionFuel += fuelConsumed;
             });
+            
             const overallConsumption = 
               totalConsumptionDistance > 0 
                 ? (totalConsumptionFuel / totalConsumptionDistance) * 100 
@@ -1009,32 +1066,75 @@
           // --- حساب الملخص الشهري ---
           _computeMonthlySummary(computedRecords) {
             const monthlyMap = {};
-            computedRecords.forEach((rec, idx) => {
-              if (rec.isInitial) return; // السجل الأولي لا يُحتسب
-              const dist = rec._distance;
-              const dateStr = rec.date;
+            const tankCap = this.vehicle.tankCapacity;
+            const initialFuelAmount =
+              tankCap * (this.vehicle.initialFuelPercentage / 100);
+
+            // استخراج دورات الاستهلاك من recalculateAll
+            // لتجنب تكرار الحساب
+            const cycles = this._extractCycles(computedRecords);
+
+            // حساب الاستهلاك من الدورات المكتملة فقط
+            cycles.forEach((cycle) => {
+              const endRec = computedRecords[cycle.endIdx];
+              const dateStr = endRec.date;
               if (!dateStr) return;
               const monthKey = dateStr.substring(0, 7); // YYYY-MM
+              
               if (!monthlyMap[monthKey]) {
                 monthlyMap[monthKey] = {
                   month: monthKey,
                   distance: 0,
                   liters: 0,
                   cost: 0,
+                  consumptionDistance: 0,
+                  consumptionFuel: 0,
                 };
               }
-              monthlyMap[monthKey].distance += dist;
-              monthlyMap[monthKey].liters += rec.liters;
-              monthlyMap[monthKey].cost += rec.cost;
+
+              // جمع المسافة والوقود والتكلفة من سجلات الدورة
+              for (let i = cycle.startIdx; i <= cycle.endIdx; i++) {
+                const rec = computedRecords[i];
+                if (i > cycle.startIdx) {
+                  monthlyMap[monthKey].distance += rec._distance;
+                }
+                if (!rec.isInitial) {
+                  monthlyMap[monthKey].liters += rec.liters;
+                  monthlyMap[monthKey].cost += rec.cost;
+                }
+              }
+
+              // حساب الوقود المستهلك من الدورة
+              const startRec = computedRecords[cycle.startIdx];
+              const totalDist = endRec.odometer - startRec.odometer;
+              let totalFuelAdded = 0;
+              for (let i = cycle.startIdx + 1; i <= cycle.endIdx; i++) {
+                totalFuelAdded += computedRecords[i].liters;
+              }
+              let fuelConsumed;
+              if (startRec.isInitial) {
+                fuelConsumed = initialFuelAmount + totalFuelAdded - tankCap;
+              } else {
+                fuelConsumed = totalFuelAdded;
+              }
+              fuelConsumed = Math.max(0, fuelConsumed);
+              
+              monthlyMap[monthKey].consumptionDistance += totalDist;
+              monthlyMap[monthKey].consumptionFuel += fuelConsumed;
             });
+
             // تحويل إلى مصفوفة وترتيب تنازلي
             this.monthlyData = Object.values(monthlyMap).sort((a, b) =>
               b.month.localeCompare(a.month),
             );
+            
             // حساب المؤشرات لكل شهر
             this.monthlyData.forEach((m) => {
+              // الاستهلاك من الدورات المكتملة فقط
               m.consumption =
-                m.distance > 0 ? (m.liters / m.distance) * 100 : null;
+                m.consumptionDistance > 0 
+                  ? (m.consumptionFuel / m.consumptionDistance) * 100 
+                  : null;
               m.avgCostPerKm = m.distance > 0 ? m.cost / m.distance : null;
               m.avgCostPerLiter = m.liters > 0 ? m.cost / m.liters : null;
             });
@@ -1046,16 +1146,21 @@
               "rec_" +
               Date.now().toString(36) +
               "_" +
-              Math.random().toString(36).substr(2, 6)
+              Math.random().toString(36).substring(2, 9)
             );
           }
           _sortRecords() {
-            this.records.sort((a, b) => a.odometer - b.odometer);
+            this.records.sort((a, b) => {
+              if (!a || !b) return 0;
+              return (a.odometer || 0) - (b.odometer || 0);
+            });
           }
+          
           _getLastOdometer() {
             if (this.records.length === 0) return 0;
             this._sortRecords();
-            return this.records[this.records.length - 1].odometer;
+            const lastRecord = this.records[this.records.length - 1];
+            return lastRecord ? lastRecord.odometer || 0 : 0;
           }
           _formatNumber(val, decimals = 1) {
             if (val === null || val === undefined || isNaN(val)) return "—";
@@ -1067,6 +1172,9 @@
           }
           _getMonthNameArabic(monthKey) {
             const [y, m] = monthKey.split("-");
+            const monthIdx = parseInt(m) - 1;
+            if (monthIdx < 0 || monthIdx > 11) return monthKey; // fallback
+            
             const monthNames = [
               "يناير",
               "فبراير",
@@ -1081,7 +1189,45 @@
               "نوفمبر",
               "ديسمبر",
             ];
-            return `${monthNames[parseInt(m) - 1]} ${y}`;
+            return `${monthNames[monthIdx]} ${y}`;
+          }
+
+          // --- استخراج دورات الاستهلاك (تحسين الأداء) ---
+          _extractCycles(computedRecords) {
+            const cycles = [];
+            let cycleStartIdx = 0;
+            for (let i = 1; i < computedRecords.length; i++) {
+              if (
+                computedRecords[i].fillType === "full" &&
+                !computedRecords[i].isInitial
+              ) {
+                cycles.push({ startIdx: cycleStartIdx, endIdx: i });
+                cycleStartIdx = i;
+              }
+            }
+            return cycles;
+          }
+
+          // حساب الوقود المستهلك في الدورة
+          _calculateCycleConsumption(computedRecords, cycle, initialFuelAmount, tankCap) {
+            const startRec = computedRecords[cycle.startIdx];
+            const endRec = computedRecords[cycle.endIdx];
+            const distance = endRec.odometer - startRec.odometer;
+            
+            let totalFuelAdded = 0;
+            for (let i = cycle.startIdx + 1; i <= cycle.endIdx; i++) {
+              totalFuelAdded += computedRecords[i].liters;
+            }
+            
+            let fuelConsumed;
+            if (startRec.isInitial) {
+              fuelConsumed = initialFuelAmount + totalFuelAdded - tankCap;
+            } else {
+              fuelConsumed = totalFuelAdded;
+            }
+            fuelConsumed = Math.max(0, fuelConsumed);
+            
+            return { fuelConsumed, distance };
           }
         }
 
@@ -1094,7 +1240,17 @@
             this.modalContainer = document.getElementById("modal-container");
           }
 
-          // --- عرض الإشعارات ---
+          // --- منع XSS: تجنب الأكواد الضارة ---
+          _escapeHtml(text) {
+            const map = {
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#039;",
+            };
+            return String(text).replace(/[&<>"']/g, (m) => map[m]);
+          }
           showToast(message, type = "") {
             const toast = document.createElement("div");
             toast.className = `toast ${type}`;
@@ -1114,7 +1270,7 @@
                         <div class="modal" style="max-width:400px;">
                             <div class="confirm-content">
                                 <span class="warn-icon">⚠️</span>
-                                <p>${message}</p>
+                                <p>${this._escapeHtml(message)}</p>
                             </div>
                             <div class="modal-actions" style="justify-content:center;">
                                 <button class="btn btn-ghost btn-cancel">إلغاء</button>
